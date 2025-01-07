@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+// Message for vehicle_status
+message MosVehicleStatus {
+    string cType = 1; // "real", "vehicle", "virtual"
+    string position = 2; // Position in the format "latitude,longitude,elevation" (m)
+    double heading = 3; // Heading angle (rad)
+    double speed = 4; // Speed (m/s)
+    int32 id = 5; // Vehicle identifier
+    double width = 6; // Vehicle width (m)
+    double lengthf= 7; // Vehicle length from center to the front
+    double lengthb= 8; // from center to the rear
+    double height = 9; // Vehicle height
+    double accMax = 10; // m/s2
+    double timeStamp = 11; // Timestamp as a float (s)
+    
+    double t_veh_sent = 12;
+    double t_meta_rev = 13;
+    double t_meta_sent = 14;
+    double t_intel_rev = 15;
+    double t_intel_sent = 16;
+    double t_veh_rev = 17;
+}
+
+// Message for suggested_speed
+message MosSpeedSuggest {
+    double sgSpeed = 1;
+    double timeStamp = 2;
+
+    double t_veh_sent = 12;
+    double t_meta_rev = 13;
+    double t_meta_sent = 14;
+    double t_intel_rev = 15;
+    double t_intel_sent = 16;
+    double t_veh_rev = 17;
+}
+
+// message MosTrafficState {
+//     repeated string signal_id = 1;
+//     repeated string traffic_light = 2;
+//     repeated int32 remaining_time = 3;
+//     repeated string surr_vehicle_id = 4;
+//     repeated string surr_vehicle_pos = 5;
+//     repeated float surr_vehicle_speed = 6;
+//     repeated string surr_vehicle_dir = 7;
+// }
+
+message MosTrafficState {    
+    string cType = 1; // "real", "vehicle", "virtual"
+    string position = 2; // Position in the format "latitude,longitude"
+    double heading = 3; // Heading angle (rad)
+    double speed = 4; // Speed (m/s)
+    int32 id = 5; // Vehicle identifier
+    double width = 6; // Vehicle width
+    double lengthf= 7; // Vehicle length from center to the front
+    double lengthb= 8; // from center to the rear
+    double height = 9; // Vehicle height
+    double accMax = 10; // m/s2
+    double timeStamp = 11; // Timestamp as a float (s)
+
+    double t_veh_sent = 12;
+    double t_meta_rev = 13;
+    double t_meta_sent = 14;
+    double t_intel_rev = 15;
+    double t_intel_sent = 16;
+    double t_veh_rev = 17;
+}
+
+message Empty {}
+
+service VehicleStatusService {
+    rpc GetVehicleStatus(Empty) returns (stream MosVehicleStatus) {}
+  }
+
+service SpeedSuggestionService {
+    rpc SetSpeedSuggest(MosSpeedSuggest) returns (Empty) {}
+}
+
+service TrafficStateService {
+    rpc SetTrafficState(MosTrafficState) returns (Empty) {}
+}

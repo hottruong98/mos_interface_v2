@@ -1,0 +1,4 @@
+<launch>
+  <node name="ros_grpc_interface_node" pkg="mos_interface_v2" type="ros_grpc_interface.py" output="screen">
+  </node>
+</launch>

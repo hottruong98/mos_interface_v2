@@ -1,0 +1,12 @@
+# Byte-compiled / optimized / DLL files
+pycache/
+*.py[cod]
+*$py.class
+*.ipynb
+
+# C extensions
+*.so
+
+*.log
+
+.vscode/
