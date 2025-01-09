@@ -1,0 +1,38 @@
+# 
+apiVersion: apps/v1  # Specifies the API version for the deployment resource in Kubernetes.
+kind: Deployment     # Defines the type of resource. In this case, it's a Deployment, which manages a set of identical pods.
+metadata:
+  name: navya-status-pub  # The name of the deployment. This is used to identify the deployment within the Kubernetes cluster.
+  labels:               # Labels are key-value pairs used to organize and select resources.
+    app: navya-status-pub # Label with key 'app' and value 'metaserver-app'. Useful for selecting the deployment's pods.
+spec:
+  replicas: 1           # Specifies that only one replica (pod) of the application should run.
+  selector:
+    matchLabels:
+      app: navya-status-pub  # The selector uses the label to find which pods are managed by this deployment.
+  template:
+    metadata:
+      labels:
+        app: navya-status-pub  # Labels applied to the pods created by this deployment.
+    spec:
+      containers:
+      - name: navya-status-pub  # The name of the container running within the pod.
+        image: docker.io/kaistmos/navya_status_pub:latest  # The Docker image to use for this container. It includes the application and all dependencies.
+        env:                 # Defines environment variables that are passed to the container.
+        - name: RABBITMQ_HOST
+          value: "mos-rabbitmqcluster.default.svc.cluster.local"  # Hostname for connecting to the RabbitMQ service within the cluster.
+        - name: RABBITMQ_PORT
+          value: "5672"  # The port on which RabbitMQ is listening.
+        - name: RABBITMQ_USER
+          value: "mos"  # Username for authenticating with RabbitMQ.
+        - name: RABBITMQ_PASSWORD
+          value: "mos"  # Password for authenticating with RabbitMQ.
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: GRPC_TARGET
+          value: "143.248.221.201:50051"
+        - name: VEHICLE_STATUS_QUEUE
+          value: "M_v_status" # "status-V2-C1"
+        ports:
+        - containerPort: 50051  # The port on which the application inside the container will listen for incoming connections.
+      restartPolicy: Always  # Specifies that the container should always be restarted if it fails.
