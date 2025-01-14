@@ -1,0 +1,4 @@
+<launch>
+  <node name="ros_mqtt_node" pkg="mos_interface_v2" type="ros_mqtt.py" output="screen">
+  </node>
+</launch>
