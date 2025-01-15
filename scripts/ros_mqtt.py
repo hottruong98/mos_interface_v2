@@ -24,11 +24,16 @@ rospy.init_node('ros_mqtt_node', anonymous=True)
 import paho.mqtt.client as mqtt
 MQTT_HOST = "172.25.15.204"  # Replace with the server's public IP
 MQTT_PORT = 1883
-MQTT_TUCSON_STATUS_TOPIC = 'tucson/status'
-MQTT_TUCSON_TRAFFIC_TOPIC = 'tucson/traffic'
-MQTT_TUCSON_SPEED_TOPIC = 'tucson/speed'
-# client = mqtt.Client()
-# client.connect(MQTT_HOST, MQTT_PORT)
+MQTT_STATUS_TOPIC = 'tucson/status'
+MQTT_TRAFFIC_TOPIC = 'tucson/traffic'
+MQTT_SPEED_TOPIC = 'tucson/speed'
+
+MQTT_STATUS_CLIENT_ID = "MQTT_TUCSON_STATUS_PUBLISHER"
+MQTT_TRAFFIC_CLIENT_ID = "MQTT_TUCSON_TRAFFIC_SUBSCRIBER"
+MQTT_SPEED_CLIENT_ID = "MQTT_TUCSON_SPEED_CLIENT_SUBSCRIBER"
+
+CLEAN_SESSION = False # DON'T remove client info after disconnection - reconnection
+KEEP_ALIVE_SECOND = 1 # Check MQTT connection status every 3 x KEEP_ALIVE_SECOND (s)
 ##########################################################################
 
 class StatusSender():
@@ -50,24 +55,28 @@ class StatusSender():
         self.latest_publish_time = 0.0
         
         # MQTT setup
-        self.client = mqtt.Client()
+        self.client = mqtt.Client(
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2, 
+            client_id=MQTT_STATUS_CLIENT_ID, 
+            clean_session=CLEAN_SESSION
+        )
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
-        self.client.connect(MQTT_HOST, MQTT_PORT)
+        self.client.connect(MQTT_HOST, MQTT_PORT, keepalive=KEEP_ALIVE_SECOND)
         self.client.loop_start()
     
-    def on_connect(self, client, userdata, flags, rc):
-        if rc == 0:
+    def on_connect(self, client, userdata, connect_flags, reason_code, properties):
+        if reason_code == 0:
             rospy.loginfo(f"StatusSender | Connected to MQTT Broker")
         else:
-            rospy.loginfo(f"StatusSender | Failed to connect, return code {rc}")
-
-    def on_disconnect(self, client, userdata, rc):
+            rospy.loginfo(f"StatusSender | Failed to connect, return code {reason_code}")
+    
+    def on_disconnect(self, client, userdata, disconnect_flags, reason_code, properties):
         rospy.loginfo("StatusSender | Disconnected from broker. Reconnecting...")
         while True:
             try:
-                self.client.reconnect()
-                rospy.loginfo("StatusSender | Reconnected successfully.")
+                self.client.connect(MQTT_HOST, MQTT_PORT, keepalive=KEEP_ALIVE_SECOND)
+                # rospy.loginfo("")
                 break
             except Exception as e:
                 rospy.loginfo(f"StatusSender | Reconnect failed: {e}")
@@ -106,13 +115,12 @@ class StatusSender():
             t_intel_sent = 0,
             t_veh_rev = 0,
         )
-        self.client.publish(MQTT_TUCSON_STATUS_TOPIC, json.dumps(message))
+        self.client.publish(MQTT_STATUS_TOPIC, json.dumps(message))
         self.latest_publish_time = current_time
 
 class SpeedReceiver():
     def __init__(self):
         super().__init__()
-        # self.mos_speed_suggest = 0.0
         self.speed_pub = rospy.Publisher('mos_cmd_vel', Int32, queue_size=1)
         self.last_received_time = time.time()
         self.lock = threading.Lock()
@@ -124,28 +132,30 @@ class SpeedReceiver():
         self.monitor_thread.start()
 
         # MQTT setup
-        self.client = mqtt.Client()
+        self.client = mqtt.Client(
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2, 
+            client_id=MQTT_SPEED_CLIENT_ID, 
+            clean_session=CLEAN_SESSION
+        )
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_message = self.on_speed_message
-        self.client.connect(MQTT_HOST, MQTT_PORT)
-        # self.client.subscribe("MQTT_TUCSON_SPEED_TOPIC") 
+        self.client.connect(MQTT_HOST, MQTT_PORT, keepalive=KEEP_ALIVE_SECOND)
         self.client.loop_start()
 
-    def on_connect(self, client, userdata, flags, rc):
-        if rc == 0:
-            self.client.subscribe("MQTT_TUCSON_SPEED_TOPIC") 
+    def on_connect(self, client, userdata, connect_flags, reason_code, properties):
+        if reason_code == 0:
+            self.client.subscribe(MQTT_SPEED_TOPIC) 
             rospy.loginfo(f"SpeedReceiver | Connected to MQTT Broker")
         else:
-            rospy.loginfo(f"SpeedReceiver | Failed to connect, return code {rc}")
+            rospy.loginfo(f"SpeedReceiver | Failed to connect, return code {reason_code}")
 
-    def on_disconnect(self, client, userdata, rc):
+    def on_disconnect(self, client, userdata, disconnect_flags, reason_code, properties):
         rospy.loginfo("SpeedReceiver | Disconnected from broker. Reconnecting...")
         while True:
             try:
-                self.client.reconnect()
-                # self.client.subscribe("MQTT_TUCSON_SPEED_TOPIC") 
-                rospy.loginfo("SpeedReceiver | Reconnected successfully.")
+                self.client.connect(MQTT_HOST, MQTT_PORT, keepalive=KEEP_ALIVE_SECOND)
+                # rospy.loginfo("")
                 break
             except Exception as e:
                 rospy.loginfo(f"SpeedReceiver | Reconnect failed: {e}")
@@ -162,7 +172,6 @@ class SpeedReceiver():
                         self.has_published_timeout = True
 
     def on_speed_message(self, client, userdata, msg):
-        # rospy.loginfo(f'speed: {msg}')
         speed_data = json.loads(msg.payload.decode()) 
         speed_suggest = float(speed_data['sgSpeed'])
         with self.lock:
@@ -181,28 +190,30 @@ class TrafficReceiver():
             'virtual': 3,
         }
         # MQTT setup
-        self.client = mqtt.Client()
+        self.client = mqtt.Client(
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2, 
+            client_id=MQTT_TRAFFIC_CLIENT_ID, 
+            clean_session=CLEAN_SESSION
+        )
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_message = self.on_traffic_message
-        self.client.connect(MQTT_HOST, MQTT_PORT)
-        # self.client.subscribe("MQTT_TUCSON_TRAFFIC_TOPIC")  # Subscribe to the relevant traffic update topic
+        self.client.connect(MQTT_HOST, MQTT_PORT, keepalive=KEEP_ALIVE_SECOND)
         self.client.loop_start()
     
-    def on_connect(self, client, userdata, flags, rc):
-        if rc == 0:
-            self.client.subscribe("MQTT_TUCSON_TRAFFIC_TOPIC")
+    def on_connect(self, client, userdata, connect_flags, reason_code, properties):
+        if reason_code == 0:
+            self.client.subscribe(MQTT_TRAFFIC_TOPIC)
             rospy.loginfo(f"TrafficReceiver | Connected to MQTT Broker")
         else:
-            rospy.loginfo(f"TrafficReceiver | Failed to connect, return code {rc}")
+            rospy.loginfo(f"TrafficReceiver | Failed to connect, return code {reason_code}")
 
-    def on_disconnect(self, client, userdata, rc):
+    def on_disconnect(self, client, userdata, disconnect_flags, reason_code, properties):
         rospy.loginfo("TrafficReceiver | Disconnected from broker. Reconnecting...")
         while True:
             try:
-                self.client.reconnect()
-                # self.client.subscribe("MQTT_TUCSON_TRAFFIC_TOPIC")
-                rospy.loginfo("TrafficReceiver | Reconnected successfully.")
+                self.client.connect(MQTT_HOST, MQTT_PORT, keepalive=KEEP_ALIVE_SECOND)
+                # rospy.loginfo("")
                 break
             except Exception as e:
                 rospy.loginfo(f"TrafficReceiver | Reconnect failed: {e}")
